@@ -17,8 +17,10 @@ import asyncio
 import json
 import logging
 import mimetypes
+import sys
 import threading
 import time
+import types
 from collections import OrderedDict
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
@@ -27,10 +29,15 @@ import aiohttp
 
 # Compatibility for setuptools>=82 where pkg_resources no longer exposes
 # declare_namespace, but lark-oapi still imports it.
+# When pkg_resources is absent entirely (removed in setuptools>=82), inject a
+# minimal shim into sys.modules so that lark-oapi's own internal imports also
+# resolve without raising ModuleNotFoundError.
 try:
     import pkg_resources  # type: ignore
-except ImportError:  # pragma: no cover - defensive fallback
-    pkg_resources = None
+except ImportError:  # pragma: no cover - pkg_resources absent (setuptools>=82)
+    _shim = types.ModuleType("pkg_resources")
+    _shim.declare_namespace = lambda _name: None  # type: ignore[attr-defined]
+    sys.modules.setdefault("pkg_resources", _shim)
 else:
     if not hasattr(pkg_resources, "declare_namespace"):
 
